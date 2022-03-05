@@ -50,7 +50,7 @@ setup: setup-qemu
 # patches to better support boards that Tock supports.
 .PHONY: setup-qemu
 setup-qemu:
-	CI=true $(MAKE) -C tock ci-setup-qemu
+	#CI=true $(MAKE) -C tock ci-setup-qemu
 
 # Builds a Tock 2.0 kernel for the HiFive board for use by QEMU tests.
 .PHONY: kernel-hifive
@@ -197,7 +197,7 @@ nucleo_f446re:
 
 .PHONY: nrf52840
 nrf52840:
-	LIBTOCK_PLATFORM=nrf52840 cargo run --example $(EXAMPLE) $(features) \
+	LIBTOCK_PLATFORM=nrf52840 cargo run --verbose --example $(EXAMPLE) $(features) \
 		--target=thumbv7em-none-eabi $(release)
 	mkdir -p target/tbf/nrf52840
 	cp target/thumbv7em-none-eabi/release/examples/$(EXAMPLE).tab \

@@ -32,7 +32,21 @@ pub enum Deploy {
 
 fn main() {
     let cli = Cli::parse();
-    let paths = elf2tab::convert_elf(&cli);
+    
+    let arch = match var("LIBTOCK_ARCH") {
+        Err(VarError::NotPresent) => {
+            panic!("LIBTOCK_ARCH must be specified to deploy")
+        }
+        Err(VarError::NotUnicode(arch)) => {
+            panic!("Non-UTF-8 LIBTOCK_ARCH value: {:?}", arch)
+        }
+        Ok(arch) => arch,
+    };
+    if cli.verbose {
+        println!("Detected arch {}", arch);
+    }
+    
+    let paths = elf2tab::convert_elf(&cli, &arch);
     let deploy = match cli.deploy {
         None => return,
         Some(deploy) => deploy,

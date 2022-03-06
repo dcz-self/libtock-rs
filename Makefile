@@ -197,16 +197,16 @@ nucleo_f446re:
 
 .PHONY: nrf52840
 nrf52840:
-	LIBTOCK_PLATFORM=nrf52840 cargo run --verbose --example $(EXAMPLE) $(features) \
+	LIBTOCK_PLATFORM=nrf52840 LIBTOCK_ARCH=cortex-m4 cargo run --verbose --example $(EXAMPLE) $(features) \
 		--target=thumbv7em-none-eabi $(release)
 	mkdir -p target/tbf/nrf52840
 	cp target/thumbv7em-none-eabi/release/examples/$(EXAMPLE).tab \
-		target/thumbv7em-none-eabi/release/examples/$(EXAMPLE).tbf \
+		target/thumbv7em-none-eabi/release/examples/cortex-m4.$(EXAMPLE).tbf \
 		target/tbf/nrf52840
 
 .PHONY: flash-nrf52840
 flash-nrf52840:
-	LIBTOCK_PLATFORM=nrf52840 cargo run --example $(EXAMPLE) $(features) \
+	LIBTOCK_PLATFORM=nrf52840 LIBTOCK_ARCH=cortex-m4 cargo run --example $(EXAMPLE) $(features) \
 		--target=thumbv7em-none-eabi $(release) -- --deploy=tockloader
 
 .PHONY: raspberrypi_pico

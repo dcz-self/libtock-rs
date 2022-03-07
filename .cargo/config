@@ -17,4 +17,4 @@ runner = ["cargo", "run", "-p", "runner", "--release"]
 [target.thumbv7em-none-eabi]
 # Not using the Rust linker because I'm not sure if that is dependent on .rlib vesion-specific format (but it seems .rlib are ok for ld)
 #linker = "/usr/bin/arm-none-eabi-ld" # from arm-none-eabi-binutils-cs-1:2.37-2.fc35.x86_64
-linker="false"
+#linker="false"

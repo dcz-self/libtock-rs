@@ -47,6 +47,16 @@ fn failed_print() {
     let kernel = fake::Kernel::new();
     let driver = fake::Console::new();
     kernel.add_driver(&driver);
+    kernel.add_expected_syscall(ExpectedSyscall::AllowRo {
+        driver_num: DRIVER_NUM,
+        buffer_num: 1,
+        return_error: None,
+    });
+    kernel.add_expected_syscall(ExpectedSyscall::Subscribe {
+        driver_num: DRIVER_NUM,
+        subscribe_num: 1,
+        skip_with_error: None,
+    });
     kernel.add_expected_syscall(ExpectedSyscall::Command {
         driver_id: DRIVER_NUM,
         command_id: command::WRITE,
@@ -55,6 +65,7 @@ fn failed_print() {
         override_return: Some(command_return::failure(ErrorCode::Fail)),
     });
 
-    assert_eq!(Console::write(&[0, 5]), Err(ErrorCode::Fail));
-    assert_eq!(driver.take_bytes(), &[]);
+    assert_eq!(Console::write(b"abcde"), Err(ErrorCode::Fail));
+    // The fake driver still receives the command even if a fake error is injected.
+    assert_eq!(driver.take_bytes(), b"abcde");
 }

@@ -1,4 +1,5 @@
 use super::*;
+use core::fmt::Write;
 use libtock_platform::ErrorCode;
 use libtock_unittest::{command_return, fake, ExpectedSyscall};
 
@@ -26,12 +27,9 @@ fn write_bytes_all() {
     let driver = fake::Console::new();
     kernel.add_driver(&driver);
 
-    Console::write_all("foo".as_bytes());
-    Console::write_all("bar".as_bytes());
-    assert_eq!(
-        driver.take_bytes(),
-        "foobar".as_bytes(),
-    );
+    Console::write_all("foo".as_bytes()).unwrap();
+    Console::write_all("bar".as_bytes()).unwrap();
+    assert_eq!(driver.take_bytes(), "foobar".as_bytes(),);
 }
 
 #[test]
@@ -40,8 +38,8 @@ fn write_str() {
     let driver = fake::Console::new();
     kernel.add_driver(&driver);
 
-    write!(Console, "foo").unwrap();
-    assert_eq!(driver.take_bytes(), "foo".as_bytes())]);
+    write!(Console::writer(), "foo").unwrap();
+    assert_eq!(driver.take_bytes(), "foo".as_bytes());
 }
 
 /*

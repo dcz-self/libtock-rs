@@ -26,7 +26,7 @@ impl Console {
 
     /// Returns the bytes that have been submitted so far,
     /// and clears them.
-    pub fn take_messages(&self) -> Vec<u8> {
+    pub fn take_bytes(&self) -> Vec<u8> {
         self.messages.take()
     }
 }

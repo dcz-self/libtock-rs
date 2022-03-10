@@ -1,6 +1,7 @@
 #![no_std]
 
 use core::fmt;
+use core::marker::PhantomData;
 use libtock_platform::allow_ro;
 use libtock_platform::allow_ro::AllowRo;
 use libtock_platform::share;
@@ -94,11 +95,21 @@ impl<S: Syscalls> Console<S> {
             Ok(())
         })
     }
+
+    pub fn writer() -> ConsoleWriter<S> {
+        ConsoleWriter {
+            syscalls: Default::default(),
+        }
+    }
 }
 
-impl<S: Syscalls> fmt::Write for Console<S> {
+pub struct ConsoleWriter<S: Syscalls> {
+    syscalls: PhantomData<S>,
+}
+
+impl<S: Syscalls> fmt::Write for ConsoleWriter<S> {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
-        Self::write_all(s.as_bytes()).map_err(|_e| fmt::Error)
+        Console::<S>::write_all(s.as_bytes()).map_err(|_e| fmt::Error)
     }
 }
 
@@ -107,8 +118,8 @@ struct AllowConfig;
 // Not sure if nonzero returned buffers should receive special attention.
 impl allow_ro::Config for AllowConfig {}
 
-//#[cfg(test)]
-//mod tests;
+#[cfg(test)]
+mod tests;
 
 // -----------------------------------------------------------------------------
 // Driver number and command IDs

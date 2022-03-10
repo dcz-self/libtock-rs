@@ -111,7 +111,7 @@ test-stable:
 	CARGO_TARGET_DIR="target/stable-toolchain" cargo +stable check --workspace \
 		$(EXCLUDE_RUNTIME)
 	CARGO_TARGET_DIR="target/stable-toolchain" LIBTOCK_PLATFORM=nrf52 cargo \
-		+stable check $(EXCLUDE_STD) --target=thumbv7em-none-eabi --workspace
+		check $(EXCLUDE_STD) --target=thumbv7em-none-eabi --workspace
 
 .PHONY: test
 test: examples test-stable

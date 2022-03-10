@@ -42,7 +42,6 @@ fn write_str() {
     assert_eq!(driver.take_bytes(), "foo".as_bytes());
 }
 
-/*
 #[test]
 fn failed_print() {
     let kernel = fake::Kernel::new();
@@ -50,15 +49,12 @@ fn failed_print() {
     kernel.add_driver(&driver);
     kernel.add_expected_syscall(ExpectedSyscall::Command {
         driver_id: DRIVER_NUM,
-        command_id: PRINT_1,
-        argument0: 72,
+        command_id: command::WRITE,
+        argument0: 5,
         argument1: 0,
         override_return: Some(command_return::failure(ErrorCode::Fail)),
     });
 
-    // The error is explicitly silenced, and cannot be detected.
-    Console::print_1(72);
-
-    // The fake driver still receives the command even if a fake error is injected.
-    assert_eq!(driver.take_messages(), [fake::Message::Print1(72)]);
-}*/
+    assert_eq!(Console::write(&[0, 5]), Err(ErrorCode::Fail));
+    assert_eq!(driver.take_bytes(), &[]);
+}

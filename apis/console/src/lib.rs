@@ -1,24 +1,26 @@
 #![no_std]
 
-use libtock_platform::Syscalls;
+use core::fmt;
+use libtock_platform::{Syscalls, ErrorCode};
+use libtock_platform::allow_ro;
+use libtock_platform::allow_ro::AllowRo;
+use libtock_platform::share;
+use libtock_platform::subscribe::Subscribe;
 
-/// The low-level debug API provides tools to diagnose userspace issues that
-/// make normal debugging workflows (e.g. printing to the console) difficult.
+/// The console driver.
 ///
-/// It allows libraries to print alert codes and apps to print numeric
-/// information using only the command system call.
+/// It allows libraries to pass strings to the kernel's console driver.
 ///
 /// # Example
 /// ```ignore
-/// use libtock2::LowLevelDebug;
+/// use libtock2::Console;
 ///
 /// // Prints 0x45 and the app which called it.
-/// LowLevelDebug::print_1(0x45);
+/// Console::print(0x45);
 /// ```
+pub struct Console<S: Syscalls>(S);
 
-pub struct LowLevelDebug<S: Syscalls>(S);
-
-impl<S: Syscalls> LowLevelDebug<S> {
+impl<S: Syscalls> Console<S> {
     /// Run a check against the low-level debug capsule to ensure it is present.
     ///
     /// Returns `true` if the driver was present. This does not necessarily mean
@@ -26,57 +28,127 @@ impl<S: Syscalls> LowLevelDebug<S> {
     /// memory.
     #[inline(always)]
     pub fn driver_check() -> bool {
-        S::command(DRIVER_NUM, DRIVER_CHECK, 0, 0).is_success()
+        S::command(DRIVER_NUM, command::DRIVER_CHECK, 0, 0).is_success()
     }
-
-    /// Print one of the predefined alerts in [`AlertCode`].
-    #[inline(always)]
-    pub fn print_alert_code(code: AlertCode) {
-        let _ = S::command(DRIVER_NUM, PRINT_ALERT_CODE, code as u32, 0);
+    
+    /// Writes bytes, returns count of bytes written.
+    pub fn write(s: &[u8]) -> Result<u32, ErrorCode> { 
+        let called = core::cell::Cell::new(Option::<(u32,)>::None);
+        share::scope::<
+            (AllowRo<_, DRIVER_NUM, 1>, Subscribe<_, DRIVER_NUM, 1>),
+            _,
+            _,
+        >(|handle| {
+            let (allow_ro, subscribe) = handle.split();
+            
+            S::allow_ro::<AllowConfig, DRIVER_NUM, 1>(allow_ro, s)?;
+            
+            S::subscribe::<
+                _,
+                _,
+                subscribe::Config,
+                DRIVER_NUM,
+                1
+                //subscribe::WRITE, // this confuses the compiler
+            >(subscribe, &called)?;
+            
+            S::command(DRIVER_NUM, command::WRITE, s.len() as u32, 0)
+                .to_result()?;
+            
+            loop {
+                S::yield_wait();
+                if let Some((bytes_read_count,)) = called.get() {
+                    return Ok(bytes_read_count);
+                }
+            }
+        })
     }
-
-    /// Print a single number. The number will be printed in hexadecimal.
-    ///
-    /// In general, this should only be added temporarily for debugging and
-    /// should not be called by released library code.
-    #[inline(always)]
-    pub fn print_1(x: u32) {
-        let _ = S::command(DRIVER_NUM, PRINT_1, x, 0);
-    }
-
-    /// Print two numbers. The numbers will be printed in hexadecimal.
-    ///
-    /// Like `print_1`, this is intended for temporary debugging and should not
-    /// be called by released library code. If you want to print multiple
-    /// values, it is often useful to use the first argument to indicate what
-    /// value is being printed.
-    #[inline(always)]
-    pub fn print_2(x: u32, y: u32) {
-        let _ = S::command(DRIVER_NUM, PRINT_2, x, y);
+    
+    /// Writes all bytes of a slice.
+    /// This is an alternative to `fmt::Write::write`
+    /// becaus this can actually return an error code.
+    /// It's makes only one `subscribe` call,
+    /// as opposed to calling `write` in a loop.
+    fn write_all(s: &[u8]) -> Result<(), ErrorCode> {
+        let called = core::cell::Cell::new(Option::<(u32,)>::None);
+        share::scope::<
+            (AllowRo<_, DRIVER_NUM, 1>, Subscribe<_, DRIVER_NUM, 1>),
+            _,
+            _,
+        >(|handle| {
+            let (allow_ro, subscribe) = handle.split();
+            
+            S::subscribe::<
+                _,
+                _,
+                subscribe::Config,
+                DRIVER_NUM,
+                1
+                //subscribe::WRITE, // this confuses the compiler
+            >(subscribe, &called)?;
+            
+            let mut remaining = s.len();
+            while remaining > 0 {
+                S::allow_ro::<AllowConfig, DRIVER_NUM, 1>(
+                    allow_ro,
+                    &s[(s.len() - remaining)..],
+                )?;
+            
+                S::command(DRIVER_NUM, command::WRITE, remaining as u32, 0)
+                    .to_result()?;
+                
+                loop {
+                    S::yield_wait();
+                    if let Some((bytes_read_count,)) = called.get() {
+                        remaining -= bytes_read_count as usize;
+                        called.set(None);
+                        break;
+                    }
+                }
+            }
+            Ok(())
+        })
     }
 }
 
-/// A predefined alert code, for use with [`LowLevelDebug::print_alert_code`].
-pub enum AlertCode {
-    /// Application panic (e.g. `panic!()` called in Rust code).
-    Panic = 0x01,
 
-    /// A statically-linked app was not installed in the correct location in
-    /// flash.
-    WrongLocation = 0x02,
+impl<S: Syscalls> fmt::Write for Console<S> {
+    fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
+        Self::write_all(s.as_bytes()).map_err(|_e| fmt::Error)
+    }
 }
 
-#[cfg(test)]
-mod tests;
+
+struct AllowConfig;
+
+// Not sure if nonzero returned buffers should receive special attention.
+impl allow_ro::Config for AllowConfig {}
+
+//#[cfg(test)]
+//mod tests;
 
 // -----------------------------------------------------------------------------
 // Driver number and command IDs
 // -----------------------------------------------------------------------------
 
-const DRIVER_NUM: u32 = 8;
+const DRIVER_NUM: u32 = 1;
 
 // Command IDs
-const DRIVER_CHECK: u32 = 0;
-const PRINT_ALERT_CODE: u32 = 1;
-const PRINT_1: u32 = 2;
-const PRINT_2: u32 = 3;
+#[allow(unused)]
+mod command {
+    pub const DRIVER_CHECK: u32 = 0;
+    pub const WRITE: u32 = 1;
+    pub const READ: u32 = 2;
+    pub const ABORT: u32 = 3;
+}
+
+#[allow(unused)]
+mod subscribe {
+    use libtock_platform::subscribe;
+    pub const WRITE: u32 = 1;
+    pub const READ: u32 = 2;
+    
+    pub struct Config;
+    
+    impl subscribe::Config for Config {}
+}

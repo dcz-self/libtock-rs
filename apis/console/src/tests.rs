@@ -2,69 +2,53 @@ use super::*;
 use libtock_platform::ErrorCode;
 use libtock_unittest::{command_return, fake, ExpectedSyscall};
 
-type LowLevelDebug = super::LowLevelDebug<fake::Syscalls>;
+type Console = super::Console<fake::Syscalls>;
 
 #[test]
 fn no_driver() {
     let _kernel = fake::Kernel::new();
-    assert!(!LowLevelDebug::driver_check());
+    assert!(!Console::driver_check());
 }
 
 #[test]
 fn driver_check() {
     let kernel = fake::Kernel::new();
-    let driver = fake::LowLevelDebug::new();
+    let driver = fake::Console::new();
     kernel.add_driver(&driver);
 
-    assert!(LowLevelDebug::driver_check());
-    assert_eq!(driver.take_messages(), []);
+    assert!(Console::driver_check());
+    assert_eq!(driver.take_bytes(), &[]);
 }
 
 #[test]
-fn print_alert_code() {
+fn write_bytes_all() {
     let kernel = fake::Kernel::new();
-    let driver = fake::LowLevelDebug::new();
+    let driver = fake::Console::new();
     kernel.add_driver(&driver);
 
-    LowLevelDebug::print_alert_code(AlertCode::Panic);
-    LowLevelDebug::print_alert_code(AlertCode::WrongLocation);
+    Console::write_all("foo".as_bytes());
+    Console::write_all("bar".as_bytes());
     assert_eq!(
-        driver.take_messages(),
-        [
-            fake::Message::AlertCode(0x01),
-            fake::Message::AlertCode(0x02)
-        ]
+        driver.take_bytes(),
+        "foobar".as_bytes(),
     );
 }
 
 #[test]
-fn print_1() {
+fn write_str() {
     let kernel = fake::Kernel::new();
-    let driver = fake::LowLevelDebug::new();
+    let driver = fake::Console::new();
     kernel.add_driver(&driver);
 
-    LowLevelDebug::print_1(42);
-    assert_eq!(driver.take_messages(), [fake::Message::Print1(42)]);
+    write!(Console, "foo").unwrap();
+    assert_eq!(driver.take_bytes(), "foo".as_bytes())]);
 }
 
-#[test]
-fn print_2() {
-    let kernel = fake::Kernel::new();
-    let driver = fake::LowLevelDebug::new();
-    kernel.add_driver(&driver);
-
-    LowLevelDebug::print_2(42, 27);
-    LowLevelDebug::print_2(29, 43);
-    assert_eq!(
-        driver.take_messages(),
-        [fake::Message::Print2(42, 27), fake::Message::Print2(29, 43)]
-    );
-}
-
+/*
 #[test]
 fn failed_print() {
     let kernel = fake::Kernel::new();
-    let driver = fake::LowLevelDebug::new();
+    let driver = fake::Console::new();
     kernel.add_driver(&driver);
     kernel.add_expected_syscall(ExpectedSyscall::Command {
         driver_id: DRIVER_NUM,
@@ -75,8 +59,8 @@ fn failed_print() {
     });
 
     // The error is explicitly silenced, and cannot be detected.
-    LowLevelDebug::print_1(72);
+    Console::print_1(72);
 
     // The fake driver still receives the command even if a fake error is injected.
     assert_eq!(driver.take_messages(), [fake::Message::Print1(72)]);
-}
+}*/

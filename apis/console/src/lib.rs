@@ -1,11 +1,11 @@
 #![no_std]
 
 use core::fmt;
-use libtock_platform::{Syscalls, ErrorCode};
 use libtock_platform::allow_ro;
 use libtock_platform::allow_ro::AllowRo;
 use libtock_platform::share;
 use libtock_platform::subscribe::Subscribe;
+use libtock_platform::{ErrorCode, Syscalls};
 
 /// The console driver.
 ///
@@ -30,31 +30,25 @@ impl<S: Syscalls> Console<S> {
     pub fn driver_check() -> bool {
         S::command(DRIVER_NUM, command::DRIVER_CHECK, 0, 0).is_success()
     }
-    
+
     /// Writes bytes, returns count of bytes written.
-    pub fn write(s: &[u8]) -> Result<u32, ErrorCode> { 
+    pub fn write(s: &[u8]) -> Result<u32, ErrorCode> {
         let called = core::cell::Cell::new(Option::<(u32,)>::None);
-        share::scope::<
-            (AllowRo<_, DRIVER_NUM, 1>, Subscribe<_, DRIVER_NUM, 1>),
-            _,
-            _,
-        >(|handle| {
+        share::scope::<(AllowRo<_, DRIVER_NUM, 1>, Subscribe<_, DRIVER_NUM, 1>), _, _>(|handle| {
             let (allow_ro, subscribe) = handle.split();
-            
+
             S::allow_ro::<AllowConfig, DRIVER_NUM, 1>(allow_ro, s)?;
-            
+
             S::subscribe::<
                 _,
                 _,
                 subscribe::Config,
                 DRIVER_NUM,
-                1
-                //subscribe::WRITE, // this confuses the compiler
+                1, //subscribe::WRITE, // this confuses the compiler
             >(subscribe, &called)?;
-            
-            S::command(DRIVER_NUM, command::WRITE, s.len() as u32, 0)
-                .to_result()?;
-            
+
+            S::command(DRIVER_NUM, command::WRITE, s.len() as u32, 0).to_result()?;
+
             loop {
                 S::yield_wait();
                 if let Some((bytes_read_count,)) = called.get() {
@@ -63,7 +57,7 @@ impl<S: Syscalls> Console<S> {
             }
         })
     }
-    
+
     /// Writes all bytes of a slice.
     /// This is an alternative to `fmt::Write::write`
     /// becaus this can actually return an error code.
@@ -71,32 +65,23 @@ impl<S: Syscalls> Console<S> {
     /// as opposed to calling `write` in a loop.
     fn write_all(s: &[u8]) -> Result<(), ErrorCode> {
         let called = core::cell::Cell::new(Option::<(u32,)>::None);
-        share::scope::<
-            (AllowRo<_, DRIVER_NUM, 1>, Subscribe<_, DRIVER_NUM, 1>),
-            _,
-            _,
-        >(|handle| {
+        share::scope::<(AllowRo<_, DRIVER_NUM, 1>, Subscribe<_, DRIVER_NUM, 1>), _, _>(|handle| {
             let (allow_ro, subscribe) = handle.split();
-            
+
             S::subscribe::<
                 _,
                 _,
                 subscribe::Config,
                 DRIVER_NUM,
-                1
-                //subscribe::WRITE, // this confuses the compiler
+                1, //subscribe::WRITE, // this confuses the compiler
             >(subscribe, &called)?;
-            
+
             let mut remaining = s.len();
             while remaining > 0 {
-                S::allow_ro::<AllowConfig, DRIVER_NUM, 1>(
-                    allow_ro,
-                    &s[(s.len() - remaining)..],
-                )?;
-            
-                S::command(DRIVER_NUM, command::WRITE, remaining as u32, 0)
-                    .to_result()?;
-                
+                S::allow_ro::<AllowConfig, DRIVER_NUM, 1>(allow_ro, &s[(s.len() - remaining)..])?;
+
+                S::command(DRIVER_NUM, command::WRITE, remaining as u32, 0).to_result()?;
+
                 loop {
                     S::yield_wait();
                     if let Some((bytes_read_count,)) = called.get() {
@@ -111,13 +96,11 @@ impl<S: Syscalls> Console<S> {
     }
 }
 
-
 impl<S: Syscalls> fmt::Write for Console<S> {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
         Self::write_all(s.as_bytes()).map_err(|_e| fmt::Error)
     }
 }
-
 
 struct AllowConfig;
 
@@ -147,8 +130,8 @@ mod subscribe {
     use libtock_platform::subscribe;
     pub const WRITE: u32 = 1;
     pub const READ: u32 = 2;
-    
+
     pub struct Config;
-    
+
     impl subscribe::Config for Config {}
 }

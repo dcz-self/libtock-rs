@@ -36,10 +36,11 @@ impl crate::fake::SyscallDriver for Console {
         DRIVER_NUM
     }
     fn num_upcalls(&self) -> u32 {
-        1
+        2
     }
-    
-    fn allow_readonly(&self,
+
+    fn allow_readonly(
+        &self,
         buffer_num: u32,
         buffer: RoAllowBuffer,
     ) -> Result<RoAllowBuffer, (RoAllowBuffer, ErrorCode)> {
@@ -81,5 +82,5 @@ const DRIVER_NUM: u32 = 1;
 // Command numbers
 const DRIVER_CHECK: u32 = 0;
 const WRITE: u32 = 1;
-const READ: u32 = 2;
-const ABORT: u32 = 3;
+//const READ: u32 = 2;
+//const ABORT: u32 = 3;

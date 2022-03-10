@@ -28,9 +28,7 @@ pub fn convert_elf(cli: &Cli, arch: &str) -> OutFiles {
     let mut elf = cli.elf.clone();
     let mut elf_name = OsString::from(arch);
     elf_name.push(".");
-    elf_name.push(
-        elf_path.file_name().unwrap_or_else(|| OsStr::new(""))
-    );
+    elf_name.push(elf_path.file_name().unwrap_or_else(|| OsStr::new("")));
     elf_name.push(".elf");
     elf.set_file_name(elf_name);
 
@@ -42,7 +40,7 @@ pub fn convert_elf(cli: &Cli, arch: &str) -> OutFiles {
     }
 
     fs::copy(&elf_path, &elf).expect("Couldn't copy the elf file");
-    
+
     // If elf2tab returns a successful status but does not write to the TBF
     // file, then we run the risk of using an outdated TBF file, creating a
     // hard-to-debug situation. Therefore, we delete the TBF file, forcing

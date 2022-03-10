@@ -32,7 +32,7 @@ pub enum Deploy {
 
 fn main() {
     let cli = Cli::parse();
-    
+
     let arch = match var("LIBTOCK_ARCH") {
         Err(VarError::NotPresent) => {
             panic!("LIBTOCK_ARCH must be specified to deploy")
@@ -45,7 +45,7 @@ fn main() {
     if cli.verbose {
         println!("Detected arch {}", arch);
     }
-    
+
     let paths = elf2tab::convert_elf(&cli, &arch);
     let deploy = match cli.deploy {
         None => return,

@@ -8,8 +8,11 @@ use libtock2::console::Console;
 use libtock2::runtime::{set_main, stack_size};
 
 set_main! {main}
-stack_size! {0x100}
+stack_size! {0x400}
 
 fn main() {
     write!(Console::writer(), "Hello world!").unwrap();
+    writeln!(Console::writer(), "Hello worlsd!").unwrap();
+    panic!("panic");
+    writeln!(Console::writer(), "Hello panic!").unwrap();
 }

@@ -12,6 +12,7 @@ debug = true
 exclude = ["tock"]
 members = [
     "apis/gpio",
+    "apis/block_storage",
     "apis/buttons",
     "apis/console",
     "apis/leds",

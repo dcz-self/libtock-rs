@@ -12,6 +12,7 @@ version = "0.1.0"
 [dependencies]
 libtock_platform = { path = "../platform" }
 libtock_runtime = { path = "../runtime" }
+libtock_block_storage = { path = "../apis/block_storage" }
 libtock_buttons = { path = "../apis/buttons" }
 libtock_console = { path = "../apis/console" }
 libtock_leds = { path = "../apis/leds" }

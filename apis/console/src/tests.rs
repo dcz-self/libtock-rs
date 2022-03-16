@@ -27,9 +27,9 @@ fn write_bytes_all() {
     let driver = fake::Console::new();
     kernel.add_driver(&driver);
 
-    Console::write_all("foo".as_bytes()).unwrap();
-    Console::write_all("bar".as_bytes()).unwrap();
-    assert_eq!(driver.take_bytes(), "foobar".as_bytes(),);
+    Console::write_all(b"foo").unwrap();
+    Console::write_all(b"bar").unwrap();
+    assert_eq!(driver.take_bytes(), b"foobar",);
 }
 
 #[test]
@@ -39,7 +39,7 @@ fn write_str() {
     kernel.add_driver(&driver);
 
     write!(Console::writer(), "foo").unwrap();
-    assert_eq!(driver.take_bytes(), "foo".as_bytes());
+    assert_eq!(driver.take_bytes(), b"foo");
 }
 
 #[test]

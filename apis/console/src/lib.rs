@@ -2,11 +2,11 @@
 
 use core::fmt;
 use core::marker::PhantomData;
-use libtock_platform::allow_ro;
+use libtock_platform as platform;
 use libtock_platform::allow_ro::AllowRo;
 use libtock_platform::share;
 use libtock_platform::subscribe::Subscribe;
-use libtock_platform::{ErrorCode, Syscalls};
+use libtock_platform::{DefaultConfig, ErrorCode, Syscalls};
 
 /// The console driver.
 ///
@@ -16,13 +16,17 @@ use libtock_platform::{ErrorCode, Syscalls};
 /// ```ignore
 /// use libtock2::Console;
 ///
-/// // Prints 0x45 and the app which called it.
-/// Console::print(0x45);
+/// // Writes "foo", followed by a newline, to the console
+/// let mut writer = Console::writer();
+/// writeln!(writer, foo).unwrap();
 /// ```
-pub struct Console<S: Syscalls>(S);
+pub struct Console<
+    S: Syscalls,
+    C: platform::allow_ro::Config + platform::subscribe::Config = DefaultConfig,
+>(S, C);
 
-impl<S: Syscalls> Console<S> {
-    /// Run a check against the low-level debug capsule to ensure it is present.
+impl<S: Syscalls, C: platform::allow_ro::Config + platform::subscribe::Config> Console<S, C> {
+    /// Run a check against the console capsule to ensure it is present.
     ///
     /// Returns `true` if the driver was present. This does not necessarily mean
     /// that the driver is working, as it may still fail to allocate grant
@@ -35,18 +39,19 @@ impl<S: Syscalls> Console<S> {
     /// Writes bytes, returns count of bytes written.
     pub fn write(s: &[u8]) -> Result<u32, ErrorCode> {
         let called = core::cell::Cell::new(Option::<(u32,)>::None);
-        share::scope::<(AllowRo<_, DRIVER_NUM, 1>, Subscribe<_, DRIVER_NUM, 1>), _, _>(|handle| {
+        share::scope::<
+            (
+                AllowRo<_, DRIVER_NUM, { allow_ro::WRITE }>,
+                Subscribe<_, DRIVER_NUM, { subscribe::WRITE }>,
+            ),
+            _,
+            _,
+        >(|handle| {
             let (allow_ro, subscribe) = handle.split();
 
-            S::allow_ro::<AllowConfig, DRIVER_NUM, 1>(allow_ro, s)?;
+            S::allow_ro::<C, DRIVER_NUM, { allow_ro::WRITE }>(allow_ro, s)?;
 
-            S::subscribe::<
-                _,
-                _,
-                subscribe::Config,
-                DRIVER_NUM,
-                1, //subscribe::WRITE, // this confuses the compiler
-            >(subscribe, &called)?;
+            S::subscribe::<_, _, C, DRIVER_NUM, { subscribe::WRITE }>(subscribe, &called)?;
 
             S::command(DRIVER_NUM, command::WRITE, s.len() as u32, 0).to_result()?;
 
@@ -61,25 +66,29 @@ impl<S: Syscalls> Console<S> {
 
     /// Writes all bytes of a slice.
     /// This is an alternative to `fmt::Write::write`
-    /// becaus this can actually return an error code.
+    /// because this can actually return an error code.
     /// It's makes only one `subscribe` call,
     /// as opposed to calling `write` in a loop.
     fn write_all(s: &[u8]) -> Result<(), ErrorCode> {
         let called = core::cell::Cell::new(Option::<(u32,)>::None);
-        share::scope::<(AllowRo<_, DRIVER_NUM, 1>, Subscribe<_, DRIVER_NUM, 1>), _, _>(|handle| {
+        share::scope::<
+            (
+                AllowRo<_, DRIVER_NUM, { allow_ro::WRITE }>,
+                Subscribe<_, DRIVER_NUM, { subscribe::WRITE }>,
+            ),
+            _,
+            _,
+        >(|handle| {
             let (allow_ro, subscribe) = handle.split();
 
-            S::subscribe::<
-                _,
-                _,
-                subscribe::Config,
-                DRIVER_NUM,
-                1, //subscribe::WRITE, // this confuses the compiler
-            >(subscribe, &called)?;
+            S::subscribe::<_, _, C, DRIVER_NUM, { subscribe::WRITE }>(subscribe, &called)?;
 
             let mut remaining = s.len();
             while remaining > 0 {
-                S::allow_ro::<AllowConfig, DRIVER_NUM, 1>(allow_ro, &s[(s.len() - remaining)..])?;
+                S::allow_ro::<C, DRIVER_NUM, { allow_ro::WRITE }>(
+                    allow_ro,
+                    &s[(s.len() - remaining)..],
+                )?;
 
                 S::command(DRIVER_NUM, command::WRITE, remaining as u32, 0).to_result()?;
 
@@ -113,11 +122,6 @@ impl<S: Syscalls> fmt::Write for ConsoleWriter<S> {
     }
 }
 
-struct AllowConfig;
-
-// Not sure if nonzero returned buffers should receive special attention.
-impl allow_ro::Config for AllowConfig {}
-
 #[cfg(test)]
 mod tests;
 
@@ -141,8 +145,8 @@ mod subscribe {
     use libtock_platform::subscribe;
     pub const WRITE: u32 = 1;
     pub const READ: u32 = 2;
+}
 
-    pub struct Config;
-
-    impl subscribe::Config for Config {}
+mod allow_ro {
+    pub const WRITE: u32 = 1;
 }

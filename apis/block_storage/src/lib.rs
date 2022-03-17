@@ -10,6 +10,20 @@ pub struct Geometry {
     pub erase_block_size: u32,
 }
 
+impl Geometry {
+    pub fn get_erase_block_containing(&self, address: u64) -> u32 {
+        (address / self.erase_block_size as u64) as u32
+    }
+
+    pub fn get_write_block_containing(&self, address: u64) -> u32 {
+        (address / self.write_block_size as u64) as u32
+    }
+
+    pub fn get_address_of_write_block(&self, idx: u32) -> u64 {
+        idx as u64 * self.write_block_size as u64
+    }
+}
+
 /// The block storage driver.
 ///
 /// It allows libraries to access a block storage device.

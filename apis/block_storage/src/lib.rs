@@ -81,7 +81,7 @@ impl<
                 { subscribe::READ },
             >(subscribe, &called)?;
 
-            S::command(DRIVER_NUM, command::WRITE, block_idx, 1).to_result()?;
+            S::command(DRIVER_NUM, command::READ, block_idx, 1).to_result()?;
 
             loop {
                 S::yield_wait();

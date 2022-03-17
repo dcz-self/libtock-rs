@@ -9,13 +9,20 @@ use libtock2::block_storage::BlockStorage;
 use libtock2::runtime::{set_main, stack_size};
 
 set_main! {main}
-stack_size! {0x400}
+stack_size! {0x1800}
 
 fn main() {
+    let mut w = Console::writer();
     if BlockStorage::driver_check() {
         let g = BlockStorage::get_geometry();
-        writeln!(Console::writer(), "Write block size: {} bytes", g.write_block_size).unwrap();
+        writeln!(&mut w, "Write block size: {} bytes", g.write_block_size).unwrap();
         writeln!(Console::writer(), "Erase block size: {} bytes", g.erase_block_size).unwrap();
+        let mut buf = [0; 4096];
+        if g.write_block_size as usize > buf.len() {
+            writeln!(Console::writer(), "Block size bigger than preallocated buffer, writes will be inaccurate.").unwrap();
+        }
+        BlockStorage::read(43, &mut buf).unwrap();
+        writeln!(&mut w, "First bytes of sector 43: {:?}", &buf[..10]).unwrap();
     } else {
         writeln!(Console::writer(), "No block device detected").unwrap();
     }

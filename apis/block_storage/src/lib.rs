@@ -94,6 +94,71 @@ impl<
             }
         })
     }
+
+    pub fn write(block_idx: u32, buf: &[u8]) -> Result<(), ErrorCode> {
+        let called = core::cell::Cell::new(Option::<(u32, u32)>::None);
+        share::scope::<
+            (
+                platform::AllowRo<_, DRIVER_NUM, { allow_ro::WRITE }>,
+                Subscribe<_, DRIVER_NUM, { subscribe::WRITE }>,
+            ),
+            _,
+            _,
+        >(|handle| {
+            let (allow_ro, subscribe) = handle.split();
+
+            S::allow_ro::<C, DRIVER_NUM, {allow_ro::WRITE}>(allow_ro, &buf)?;
+
+            S::subscribe::<
+                _,
+                _,
+                C,
+                DRIVER_NUM,
+                { subscribe::WRITE },
+            >(subscribe, &called)?;
+
+            S::command(DRIVER_NUM, command::WRITE, block_idx, 1).to_result()?;
+
+            loop {
+                S::yield_wait();
+                if let Some((is_error, errno)) = called.get() {
+                    return match is_error {
+                        0 => Ok(()),
+                        _ => Err(errno.try_into().unwrap_or(ErrorCode::Fail)),
+                    };
+                }
+            }
+        })
+    }
+    
+    pub fn erase(block_idx: u32) -> Result<(), ErrorCode> {
+        let called = core::cell::Cell::new(Option::<(u32, u32)>::None);
+        share::scope::<
+            Subscribe<_, DRIVER_NUM, { subscribe::ERASE }>,
+            _,
+            _,
+        >(|handle| {
+            S::subscribe::<
+                _,
+                _,
+                C,
+                DRIVER_NUM,
+                { subscribe::ERASE },
+            >(handle, &called)?;
+
+            S::command(DRIVER_NUM, command::ERASE, block_idx, 1).to_result()?;
+
+            loop {
+                S::yield_wait();
+                if let Some((is_error, errno)) = called.get() {
+                    return match is_error {
+                        0 => Ok(()),
+                        _ => Err(errno.try_into().unwrap_or(ErrorCode::Fail)),
+                    };
+                }
+            }
+        })
+    }
 }
 
 //#[cfg(test)]

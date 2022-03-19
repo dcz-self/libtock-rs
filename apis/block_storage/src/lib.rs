@@ -73,6 +73,13 @@ impl<
         }
     }
 
+    pub fn get_size() -> u64 {
+        S::command(DRIVER_NUM, command::SIZE, 0, 0)
+            .get_success_u64()
+            .unwrap()
+    }
+
+    
     pub fn read(block_idx: u32, mut buf: &mut [u8]) -> Result<(), ErrorCode> {
         let called = core::cell::Cell::new(Option::<(u32, u32)>::None);
         share::scope::<

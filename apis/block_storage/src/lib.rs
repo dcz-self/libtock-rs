@@ -5,6 +5,7 @@ use libtock_platform::share;
 use libtock_platform::subscribe::Subscribe;
 use libtock_platform::{DefaultConfig, ErrorCode, Syscalls};
 
+#[derive(Debug)]
 pub struct Geometry {
     pub write_block_size: u32,
     pub erase_block_size: u32,

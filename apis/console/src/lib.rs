@@ -75,7 +75,7 @@ impl<S: Syscalls, C: platform::allow_ro::Config + platform::allow_rw::Config  + 
     /// because this can actually return an error code.
     /// It's makes only one `subscribe` call,
     /// as opposed to calling `write` in a loop.
-    fn write_all(s: &[u8]) -> Result<(), ErrorCode> {
+    pub fn write_all(s: &[u8]) -> Result<(), ErrorCode> {
         let called = core::cell::Cell::new(Option::<(u32,)>::None);
         share::scope::<
             (
@@ -115,9 +115,11 @@ impl<S: Syscalls, C: platform::allow_ro::Config + platform::allow_rw::Config  + 
     /// Reads from the device and writes to `buf`, starting from index 0.
     /// No special guarantees about when the read stops.
     /// Returns count of bytes written to `buf`.
-    pub fn read(buf: &mut [u8]) -> Result<u32, ErrorCode> {
-        let called = core::cell::Cell::new(Option::<(u32,)>::None);
-        share::scope::<
+    pub fn read(buf: &mut [u8]) -> (u32, Result<(), ErrorCode>) {
+        let called = core::cell::Cell::new(Option::<(u32,u32)>::None);
+        let mut bytes_received = 0;
+        
+        let r = share::scope::<
             (
                 AllowRw<_, DRIVER_NUM, { allow_rw::READ }>,
                 Subscribe<_, DRIVER_NUM, { subscribe::READ }>,
@@ -127,19 +129,23 @@ impl<S: Syscalls, C: platform::allow_ro::Config + platform::allow_rw::Config  + 
         >(|handle| {
             let (allow_rw, subscribe) = handle.split();
             let len = buf.len();
+
             S::allow_rw::<C, DRIVER_NUM, { allow_rw::READ }>(allow_rw, buf)?;
-
             S::subscribe::<_, _, C, DRIVER_NUM, { subscribe::READ }>(subscribe, &called)?;
-
             S::command(DRIVER_NUM, command::READ, len as u32, 0).to_result()?;
 
             loop {
                 S::yield_wait();
-                if let Some((bytes_pushed_count,)) = called.get() {
-                    return Ok(bytes_pushed_count);
+                if let Some((status, bytes_pushed_count)) = called.get() {
+                    bytes_received = bytes_pushed_count;
+                    return match status {
+                        0 => Ok(()),
+                        other => Err(status.try_into().unwrap_or(ErrorCode::Fail)),
+                    }
                 }
             }
-        })
+        });
+        (bytes_received, r)
     }
     
     pub fn writer() -> ConsoleWriter<S> {

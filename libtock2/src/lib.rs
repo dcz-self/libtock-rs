@@ -19,6 +19,14 @@ pub mod console {
     use libtock_console as console;
     pub type Console = console::Console<super::runtime::TockSyscalls>;
 }
+pub mod gnss {
+    use libtock_console as console;
+    pub type GNSS = console::Serial<
+        super::runtime::TockSyscalls,
+        libtock_platform::DefaultConfig,
+        0x90004,
+    >;
+}
 pub mod leds {
     use libtock_leds as leds;
     pub type Leds = leds::Leds<super::runtime::TockSyscalls>;

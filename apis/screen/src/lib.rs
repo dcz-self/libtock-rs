@@ -165,7 +165,7 @@ impl<S: Syscalls, C: platform::allow_ro::Config + platform::subscribe::Config> S
             loop {
                 S::yield_wait();
                 if let Some((_result, command)) = called.get() {
-                    if command == Callback::WriteComplete as u32 {
+                    if command == 0 {//Callback::WriteComplete as u32 {
                         return Ok(());
                     }
                 }
@@ -187,8 +187,8 @@ const DRIVER_NUM: u32 = 0x90001;
 #[allow(unused)]
 mod command {
     pub const DRIVER_CHECK: u32 = 0;
-    pub const SET_POWER: u32 = 1;
-    pub const SET_BRIGHTNESS: u32 = 2;
+    pub const SET_POWER: u32 = 2;
+    pub const SET_BRIGHTNESS: u32 = 3;
     pub const RESOLUTION: u32 = 23;
     pub const PIXEL_FORMAT: u32 = 25;
     pub const SET_FRAME: u32 = 100;

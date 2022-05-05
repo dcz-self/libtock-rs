@@ -17,7 +17,7 @@ stack_size! {0x4000}
 const BUFSIZE: usize = 16*16*32; // 8192 bytes max
 
 fn main() {
-    Screen::set_brightness(lightness::MAX).unwrap();
+    //Screen::set_brightness(lightness::MAX).unwrap();
     Screen::set_power(true).unwrap();
 
     writeln!(Console::writer(), "Current resolution:").unwrap();
